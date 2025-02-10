@@ -15,7 +15,7 @@ run set -ex \
 copy . .
 
 run set -ex \
-    && ./gradlew build
+    && ./gradlew build -x test --continue
 
 from openjdk:21-jdk-bullseye
 

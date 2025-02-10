@@ -14,6 +14,6 @@ run npm run build
 
 from nginxinc/nginx-unprivileged:alpine-slim
 
-expose 8080
+expose 3000
 
 copy --from=build /usr/src/app/build /usr/share/nginx/html
