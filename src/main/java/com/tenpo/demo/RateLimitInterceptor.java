@@ -1,8 +1,13 @@
 package com.tenpo.demo;
 
+
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -21,8 +26,10 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     @Autowired
     TenpoService tenpoService;
 
+    static final Logger logger = LoggerFactory.getLogger(RateLimitInterceptor.class);
+
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
+    public boolean preHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler)
             throws Exception {
         if (request.getMethod().equals("OPTIONS")) {
             return true;
@@ -30,6 +37,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
 
         String apiKey = request.getHeader(HEADER_API_KEY);
         if (apiKey == null || apiKey.isEmpty()) {
+            logger.warn("Missing Header: {}", HEADER_API_KEY);
             response.sendError(HttpStatus.BAD_REQUEST.value(), "Missing Header: " + HEADER_API_KEY);
             return false;
         }

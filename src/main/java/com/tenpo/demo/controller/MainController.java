@@ -2,15 +2,20 @@ package com.tenpo.demo.controller;
 
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import com.tenpo.demo.entity.Transaction;
 import com.tenpo.demo.repositories.TransactionRepository;
@@ -19,38 +24,49 @@ import com.tenpo.demo.repositories.TransactionRepository;
 @RequestMapping(path = "/api/transactions")
 public class MainController {
 
+    private static final Logger logger = LoggerFactory.getLogger(MainController.class);
+
     @Autowired
     private TransactionRepository transactionRepository;
 
     @GetMapping
-    public Object getTransaction(@RequestParam(name = "id", required = false) Optional<Integer> idTransaction) {
-        if (!idTransaction.isPresent()) {
-            return transactionRepository.findAll();
-        }
-        return transactionRepository.findById(idTransaction.get()).orElse(null);
+    public ResponseEntity<Iterable<Transaction>> getTransactions() {
+        return ResponseEntity.ok(transactionRepository.findAll());
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Transaction> getTransactionById(@PathVariable("id") Long idTransaction) {
+        return transactionRepository.findById(idTransaction)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PostMapping
-    public Transaction addTransaction(@RequestBody Transaction transaction) {
+    public ResponseEntity<Transaction> addTransaction(@RequestBody Transaction transaction) {
+        logger.info("Adding transaction: {}", transaction);
         transactionRepository.save(transaction);
-        return transaction;
+        return ResponseEntity.created(null).body(transaction);
     }
 
-    @PutMapping
-    public Transaction updateTransaction(@RequestParam(name = "id") Integer idTransaction,
+    @PutMapping("/{id}")
+    public ResponseEntity<Transaction> updateTransaction(
+            @PathVariable("id") Long idTransaction,
             @RequestBody Transaction transaction) {
-        transactionRepository.findById(idTransaction).ifPresent(t -> {
+        Optional<Transaction> updatedTransaction = transactionRepository.findById(idTransaction).map(t -> {
             t.setAmount(transaction.getAmount());
             t.setTrade(transaction.getTrade());
             t.setUserName(transaction.getUserName());
-            transactionRepository.save(t);
+            return transactionRepository.save(t);
         });
-        return transaction;
+        return updatedTransaction
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    @DeleteMapping
-    public void deleteTransaction(@RequestParam(name = "id") Integer idTransaction) {
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteTransaction(@PathVariable("id") Long idTransaction) {
         transactionRepository.deleteById(idTransaction);
+        return ResponseEntity.noContent().build();
     }
 
 }
