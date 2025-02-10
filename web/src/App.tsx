@@ -18,24 +18,11 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/DeleteOutlined";
 import SaveIcon from "@mui/icons-material/Save";
 import CancelIcon from "@mui/icons-material/Close";
-import {
-  GridRowsProp,
-  GridRowModesModel,
-  GridRowModes,
-  DataGrid,
-  GridColDef,
-  GridToolbarContainer,
-  GridActionsCellItem,
-  GridEventListener,
-  GridRowId,
-  GridRowModel,
-  GridRowEditStopReasons,
-  GridSlotProps,
-} from "@mui/x-data-grid";
+import { DataGrid, GridColDef, GridActionsCellItem } from "@mui/x-data-grid";
 
 import axios from "axios";
 import { match } from "ts-pattern";
-import { config } from "process";
+import { toast, ToastContainer } from "react-toastify";
 
 type Transaction = {
   id: number;
@@ -65,7 +52,14 @@ function App() {
 }
 
 function TransactionManager() {
+  const notifyError = () =>
+    toast("An error occurred while making the request, please try again", {
+      type: "error",
+    });
   const [formMode, setFormMode] = React.useState<"add" | "edit">("add");
+  const [selectedTransaction, setSelectedTransaction] =
+    React.useState<Transaction | null>(null);
+
   const queryClient = useQueryClient();
   const client = useMemo(() => {
     return axios.create({
@@ -85,12 +79,11 @@ function TransactionManager() {
     resetField,
   } = useForm<TransactionRequest>();
 
-  const query = useQuery({
+  const getTransactions = useQuery({
     queryKey: ["transactions"],
     queryFn: async () => {
       return client.get("/transactions").then((res) => {
-        const data = res.data;
-        return data.map((transaction: any) =>
+        return res.data.map((transaction: Transaction) =>
           schemaTransactionResponse.parse(transaction),
         );
       });
@@ -102,16 +95,27 @@ function TransactionManager() {
       client.post("/transactions", transaction).then((res) => {
         return schemaTransactionResponse.parse(res.data);
       }),
+    onError: () => notifyError,
     onSuccess: () => queryClient.invalidateQueries(["transactions"]),
   });
 
   const updateTransaction = useMutation({
-    mutationFn: async (transaction: Transaction) =>
-      client
-        .put(`/transactions?id=${transaction.id}`, transaction)
-        .then((res) => {
-          return schemaTransactionResponse.parse(res.data);
-        }),
+    mutationFn: async (transaction: {
+      id: number;
+      trade: string;
+      userName: string;
+      amount: number;
+    }) =>
+      client.put(`/transactions/${transaction.id}`, transaction).then((res) => {
+        return schemaTransactionResponse.parse(res.data);
+      }),
+    onError: () => notifyError,
+    onSuccess: () => queryClient.invalidateQueries(["transactions"]),
+  });
+
+  const deleteTransaction = useMutation({
+    mutationFn: async (id: number) => client.delete(`/transactions/${id}`),
+    onError: () => notifyError,
     onSuccess: () => queryClient.invalidateQueries(["transactions"]),
   });
 
@@ -133,21 +137,17 @@ function TransactionManager() {
             className="textPrimary"
             color="inherit"
             onClick={() => {
-              console.log(transaction);
               setFormMode("edit");
               setValue("trade", transaction.trade);
               setValue("userName", transaction.userName);
               setValue("amount", transaction.amount);
+              setSelectedTransaction(transaction);
             }}
           />,
           <GridActionsCellItem
             icon={<DeleteIcon />}
             label="Delete"
-            onClick={() =>
-              client.delete(`/transactions?id=${transaction.id}`).then(() => {
-                queryClient.invalidateQueries(["transactions"]);
-              })
-            }
+            onClick={() => deleteTransaction.mutate(transaction.id)}
             color="inherit"
           />,
         ];
@@ -183,17 +183,20 @@ function TransactionManager() {
           component="form"
           noValidate
           autoComplete="off"
-          onSubmit={handleSubmit((data) => {
-            if (formMode === "add") {
-              addTransaction.mutate(data);
-            } else {
-              updateTransaction.mutate({
-                ...data,
-                id: query.data?.[0].id,
-                createdAt: query.data?.[0].createdAt,
-              });
-            }
-          })}
+          onSubmit={handleSubmit((data) =>
+            match(formMode)
+              .with("add", () => addTransaction.mutate(data))
+              .with("edit", () => {
+                updateTransaction.mutate({
+                  id: selectedTransaction?.id!,
+                  trade: data.trade,
+                  userName: data.userName,
+                  amount: data.amount,
+                });
+                cleanAndToggleForm();
+              })
+              .exhaustive(),
+          )}
           sx={{
             display: "grid",
             padding: 2,
@@ -242,13 +245,12 @@ function TransactionManager() {
                   disabled={isLoading}
                   variant="contained"
                   sx={{ rowStart: 4, gridColumn: "1 / 2" }}
-                  onClick={cleanAndToggleForm}
                 >
                   <SaveIcon />
                   Save
                 </Button>
                 <Button
-                  type="button"
+                  type="reset"
                   variant="contained"
                   sx={{ rowStart: 4, gridColumn: "2 / -1" }}
                   onClick={cleanAndToggleForm}
@@ -269,13 +271,24 @@ function TransactionManager() {
         }}
       >
         <DataGrid
-          rows={query.data || []}
+          rows={getTransactions.data || []}
           columns={columns}
           initialState={{ pagination: { paginationModel } }}
           pageSizeOptions={[5, 10]}
           sx={{ border: 0 }}
         />
       </Paper>
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
     </Box>
   );
 }
