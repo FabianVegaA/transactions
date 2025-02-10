@@ -5,6 +5,6 @@ import org.springframework.data.repository.CrudRepository;
 import com.tenpo.demo.entity.Transaction;
 
 public interface TransactionRepository extends
-        CrudRepository<Transaction, Integer>, JpaSpecificationExecutor<Transaction> {
+        CrudRepository<Transaction, Long>, JpaSpecificationExecutor<Transaction> {
 
 }

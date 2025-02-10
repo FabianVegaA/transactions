@@ -20,7 +20,7 @@ public class TenpoService {
 
     private Bucket newBucket(String apiKey) {
         return Bucket.builder()
-                .addLimit(Bandwidth.classic(10, Refill.intervally(10, Duration.ofSeconds(1))))
+                .addLimit(Bandwidth.classic(3, Refill.intervally(3, Duration.ofMinutes(1))))
                 .build();
     }
 }

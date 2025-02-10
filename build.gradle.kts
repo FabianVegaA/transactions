@@ -33,13 +33,14 @@ dependencies {
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("org.springframework.boot:spring-boot-testcontainers")
 	testImplementation("org.testcontainers:junit-jupiter")
-	testImplementation("org.testcontainers:postgresql")
+	testImplementation("com.h2database:h2")
+	testImplementation("org.mockito:mockito-junit-jupiter")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-// tasks.withType<Test> {
-// 	useJUnitPlatform()
-// }
+tasks.withType<Test> {
+	useJUnitPlatform()
+}
 
 tasks.bootJar {
 	mainClass.set("com.tenpo.demo.TenpoApplication")
